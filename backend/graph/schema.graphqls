@@ -1,0 +1,113 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+scalar Time
+enum ReservationStatus {
+  OPEN
+  CONFIRMED
+  CANCELED
+  DECLINED
+}
+
+enum ReservationEventBroadcast {
+  CREATED
+  UPDATED
+  CANCELED
+  CONFIRMED
+  DECLINED
+} 
+
+type ReservationEventPayload {
+  reservation: Reservation!
+  event: ReservationEventBroadcast!
+}
+
+type Reservation {
+  id: ID!
+  firstName: String
+  lastName: String!
+  phoneNumber: String!
+  email: String!
+  amount: Int!
+  createdAt: Time!
+  reserveAt: Time!
+  status: ReservationStatus!
+  notes: String
+}
+
+type ReservationInfo {
+  totalReservation: Int!
+  totalPerson: Int!
+  totalOpenReservation: Int!
+  totalConfirmedReservation: Int!
+  totalCanceledReservation: Int!
+  byHours: [ReservationInfoByHour!]!
+}
+
+type ReservationInfoByHour {
+  totalReservation: Int!
+  totalPerson: Int!
+  startsAt: Time!
+  endsAt: Time!
+}
+
+type LoginWithReservationResponse {
+  token: String!
+  reservation: Reservation!
+}
+
+input ReservationFilter {
+  firstName: String
+  lastName: String
+  id: ID
+  status: ReservationStatus
+  dateFrom: Time
+  dateTo: Time
+  email: String
+  phoneNumber: String
+}
+
+input NewReservation {
+  firstName: String
+  lastName: String!
+  amount: Int!
+  phoneNumber: String!
+  email: String!
+  reserveAt: Time!
+  notes: String
+}
+
+input UpdateReservation {
+  id: ID!
+  firstName: String
+  lastName: String
+  phoneNumber: String
+  email: String
+  amount: Int
+  reserveAt: Time
+  notes: String
+}
+
+type Query {
+  getReservation(filter: ReservationFilter!): [Reservation!]!
+  getAllReservation: [Reservation!]!
+  getReservationInfo(date: Time): ReservationInfo!
+  getReservationToday: [Reservation!]!
+  getReservationInfoToday: ReservationInfo!
+  getReservationBySequence(sequence: Int!): [Reservation!]!
+}
+
+type Mutation {
+  createReservation(input: NewReservation!): LoginWithReservationResponse!
+  updateReservation(input: UpdateReservation!): Reservation!
+  cancelReservation(id: ID!): Reservation!
+  confirmReservation(id: ID!): Reservation!
+  declineReservation(id: ID!): Reservation!
+  login(username: String!, password: String!): String!
+  loginWithReservation(id: ID!, lastName: String!): LoginWithReservationResponse!
+}
+
+type Subscription {
+  reservationUpdated: ReservationEventPayload!
+}
