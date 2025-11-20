@@ -86,4 +86,3 @@ export enum ReservationStatus {
   CANCELED = "CANCELED",
   DECLINED = "DECLINED",
 }
-

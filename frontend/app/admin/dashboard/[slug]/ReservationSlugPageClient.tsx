@@ -156,7 +156,7 @@ export default function ReservationSlugPage({ slug }: Props) {
     const templates = emailTemplates(selectedReservation) as any;
     let content: any = templates[selectedTemplate].body;
     content += `<a
-          href="https://localhost:3000/reservation?id=${reservation.id}"
+          href="${process.env.NEXT_PUBLIC_SERVER_URI}/reservation?id=${reservation.id}"
           target="_blank"
           rel="noopener noreferrer"
         >

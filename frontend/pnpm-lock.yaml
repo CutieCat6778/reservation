@@ -11,6 +11,9 @@ importers:
       '@apollo/client':
         specifier: ^4.0.9
         version: 4.0.9(graphql@16.12.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(rxjs@7.8.2)
+      '@next/env':
+        specifier: ^16.0.3
+        version: 16.0.3
       graphql:
         specifier: ^16.12.0
         version: 16.12.0
