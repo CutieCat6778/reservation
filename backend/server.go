@@ -85,7 +85,7 @@ func main() {
 
 	// Setup CORS middleware
 	corsMiddleware := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://reserve.thinis.de"},
+		AllowedOrigins:   []string{"https://reserve.thinis.de", "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
