@@ -55,22 +55,25 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		CancelReservation    func(childComplexity int, id string) int
-		ConfirmReservation   func(childComplexity int, id string) int
-		CreateReservation    func(childComplexity int, input model.NewReservation) int
-		DeclineReservation   func(childComplexity int, id string) int
-		Login                func(childComplexity int, username string, password string) int
-		LoginWithReservation func(childComplexity int, id string, lastName string) int
-		UpdateReservation    func(childComplexity int, input model.UpdateReservation) int
+		CancelReservation        func(childComplexity int, id string) int
+		ConfirmReservation       func(childComplexity int, id string) int
+		CreateReservation        func(childComplexity int, input model.NewReservation) int
+		DeclineReservation       func(childComplexity int, id string) int
+		Login                    func(childComplexity int, username string, password string) int
+		LoginWithReservation     func(childComplexity int, id string, lastName string) int
+		SendMessageToReservation func(childComplexity int, id string, content string) int
+		UpdateReservation        func(childComplexity int, input model.UpdateReservation) int
 	}
 
 	Query struct {
-		GetAllReservation        func(childComplexity int) int
-		GetReservation           func(childComplexity int, filter model.ReservationFilter) int
-		GetReservationBySequence func(childComplexity int, sequence int32) int
-		GetReservationInfo       func(childComplexity int, date *time.Time) int
-		GetReservationInfoToday  func(childComplexity int) int
-		GetReservationToday      func(childComplexity int) int
+		GetAllReservation           func(childComplexity int) int
+		GetAllReservationWithFilter func(childComplexity int, filter model.ReservationFilter) int
+		GetBigReservation           func(childComplexity int) int
+		GetReservation              func(childComplexity int, filter model.ReservationFilter) int
+		GetReservationBySequence    func(childComplexity int, sequence int32) int
+		GetReservationInfo          func(childComplexity int, date *time.Time) int
+		GetReservationInfoToday     func(childComplexity int) int
+		GetReservationToday         func(childComplexity int) int
 	}
 
 	Reservation struct {
@@ -93,6 +96,7 @@ type ComplexityRoot struct {
 
 	ReservationInfo struct {
 		ByHours                   func(childComplexity int) int
+		TotalBigReservation       func(childComplexity int) int
 		TotalCanceledReservation  func(childComplexity int) int
 		TotalConfirmedReservation func(childComplexity int) int
 		TotalOpenReservation      func(childComplexity int) int
@@ -101,10 +105,11 @@ type ComplexityRoot struct {
 	}
 
 	ReservationInfoByHour struct {
-		EndsAt           func(childComplexity int) int
-		StartsAt         func(childComplexity int) int
-		TotalPerson      func(childComplexity int) int
-		TotalReservation func(childComplexity int) int
+		EndsAt              func(childComplexity int) int
+		StartsAt            func(childComplexity int) int
+		TotalBigReservation func(childComplexity int) int
+		TotalPerson         func(childComplexity int) int
+		TotalReservation    func(childComplexity int) int
 	}
 
 	Subscription struct {
@@ -120,6 +125,7 @@ type MutationResolver interface {
 	DeclineReservation(ctx context.Context, id string) (*model.Reservation, error)
 	Login(ctx context.Context, username string, password string) (string, error)
 	LoginWithReservation(ctx context.Context, id string, lastName string) (*model.LoginWithReservationResponse, error)
+	SendMessageToReservation(ctx context.Context, id string, content string) (bool, error)
 }
 type QueryResolver interface {
 	GetReservation(ctx context.Context, filter model.ReservationFilter) ([]*model.Reservation, error)
@@ -128,6 +134,8 @@ type QueryResolver interface {
 	GetReservationToday(ctx context.Context) ([]*model.Reservation, error)
 	GetReservationInfoToday(ctx context.Context) (*model.ReservationInfo, error)
 	GetReservationBySequence(ctx context.Context, sequence int32) ([]*model.Reservation, error)
+	GetBigReservation(ctx context.Context) ([]*model.Reservation, error)
+	GetAllReservationWithFilter(ctx context.Context, filter model.ReservationFilter) ([]*model.Reservation, error)
 }
 type SubscriptionResolver interface {
 	ReservationUpdated(ctx context.Context) (<-chan *model.ReservationEventPayload, error)
@@ -231,6 +239,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.LoginWithReservation(childComplexity, args["id"].(string), args["lastName"].(string)), true
+	case "Mutation.sendMessageToReservation":
+		if e.complexity.Mutation.SendMessageToReservation == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_sendMessageToReservation_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SendMessageToReservation(childComplexity, args["id"].(string), args["content"].(string)), true
 	case "Mutation.updateReservation":
 		if e.complexity.Mutation.UpdateReservation == nil {
 			break
@@ -249,6 +268,23 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.GetAllReservation(childComplexity), true
+	case "Query.getAllReservationWithFilter":
+		if e.complexity.Query.GetAllReservationWithFilter == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getAllReservationWithFilter_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetAllReservationWithFilter(childComplexity, args["filter"].(model.ReservationFilter)), true
+	case "Query.getBigReservation":
+		if e.complexity.Query.GetBigReservation == nil {
+			break
+		}
+
+		return e.complexity.Query.GetBigReservation(childComplexity), true
 	case "Query.getReservation":
 		if e.complexity.Query.GetReservation == nil {
 			break
@@ -375,6 +411,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ReservationInfo.ByHours(childComplexity), true
+	case "ReservationInfo.totalBigReservation":
+		if e.complexity.ReservationInfo.TotalBigReservation == nil {
+			break
+		}
+
+		return e.complexity.ReservationInfo.TotalBigReservation(childComplexity), true
 	case "ReservationInfo.totalCanceledReservation":
 		if e.complexity.ReservationInfo.TotalCanceledReservation == nil {
 			break
@@ -418,6 +460,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ReservationInfoByHour.StartsAt(childComplexity), true
+	case "ReservationInfoByHour.totalBigReservation":
+		if e.complexity.ReservationInfoByHour.TotalBigReservation == nil {
+			break
+		}
+
+		return e.complexity.ReservationInfoByHour.TotalBigReservation(childComplexity), true
 	case "ReservationInfoByHour.totalPerson":
 		if e.complexity.ReservationInfoByHour.TotalPerson == nil {
 			break
@@ -658,6 +706,22 @@ func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawAr
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_sendMessageToReservation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "content", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["content"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_updateReservation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -677,6 +741,17 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getAllReservationWithFilter_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalNReservationFilter2revervationᚋbackendᚋgraphᚋmodelᚐReservationFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
 	return args, nil
 }
 
@@ -1232,6 +1307,47 @@ func (ec *executionContext) fieldContext_Mutation_loginWithReservation(ctx conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_sendMessageToReservation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_sendMessageToReservation,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().SendMessageToReservation(ctx, fc.Args["id"].(string), fc.Args["content"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_sendMessageToReservation(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_sendMessageToReservation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getReservation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1375,6 +1491,8 @@ func (ec *executionContext) fieldContext_Query_getReservationInfo(ctx context.Co
 				return ec.fieldContext_ReservationInfo_totalReservation(ctx, field)
 			case "totalPerson":
 				return ec.fieldContext_ReservationInfo_totalPerson(ctx, field)
+			case "totalBigReservation":
+				return ec.fieldContext_ReservationInfo_totalBigReservation(ctx, field)
 			case "totalOpenReservation":
 				return ec.fieldContext_ReservationInfo_totalOpenReservation(ctx, field)
 			case "totalConfirmedReservation":
@@ -1480,6 +1598,8 @@ func (ec *executionContext) fieldContext_Query_getReservationInfoToday(_ context
 				return ec.fieldContext_ReservationInfo_totalReservation(ctx, field)
 			case "totalPerson":
 				return ec.fieldContext_ReservationInfo_totalPerson(ctx, field)
+			case "totalBigReservation":
+				return ec.fieldContext_ReservationInfo_totalBigReservation(ctx, field)
 			case "totalOpenReservation":
 				return ec.fieldContext_ReservationInfo_totalOpenReservation(ctx, field)
 			case "totalConfirmedReservation":
@@ -1552,6 +1672,120 @@ func (ec *executionContext) fieldContext_Query_getReservationBySequence(ctx cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getReservationBySequence_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getBigReservation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_getBigReservation,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().GetBigReservation(ctx)
+		},
+		nil,
+		ec.marshalNReservation2ᚕᚖrevervationᚋbackendᚋgraphᚋmodelᚐReservationᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_getBigReservation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Reservation_id(ctx, field)
+			case "firstName":
+				return ec.fieldContext_Reservation_firstName(ctx, field)
+			case "lastName":
+				return ec.fieldContext_Reservation_lastName(ctx, field)
+			case "phoneNumber":
+				return ec.fieldContext_Reservation_phoneNumber(ctx, field)
+			case "email":
+				return ec.fieldContext_Reservation_email(ctx, field)
+			case "amount":
+				return ec.fieldContext_Reservation_amount(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Reservation_createdAt(ctx, field)
+			case "reserveAt":
+				return ec.fieldContext_Reservation_reserveAt(ctx, field)
+			case "status":
+				return ec.fieldContext_Reservation_status(ctx, field)
+			case "notes":
+				return ec.fieldContext_Reservation_notes(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Reservation", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getAllReservationWithFilter(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_getAllReservationWithFilter,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().GetAllReservationWithFilter(ctx, fc.Args["filter"].(model.ReservationFilter))
+		},
+		nil,
+		ec.marshalNReservation2ᚕᚖrevervationᚋbackendᚋgraphᚋmodelᚐReservationᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllReservationWithFilter(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Reservation_id(ctx, field)
+			case "firstName":
+				return ec.fieldContext_Reservation_firstName(ctx, field)
+			case "lastName":
+				return ec.fieldContext_Reservation_lastName(ctx, field)
+			case "phoneNumber":
+				return ec.fieldContext_Reservation_phoneNumber(ctx, field)
+			case "email":
+				return ec.fieldContext_Reservation_email(ctx, field)
+			case "amount":
+				return ec.fieldContext_Reservation_amount(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Reservation_createdAt(ctx, field)
+			case "reserveAt":
+				return ec.fieldContext_Reservation_reserveAt(ctx, field)
+			case "status":
+				return ec.fieldContext_Reservation_status(ctx, field)
+			case "notes":
+				return ec.fieldContext_Reservation_notes(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Reservation", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getAllReservationWithFilter_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2094,6 +2328,35 @@ func (ec *executionContext) fieldContext_ReservationInfo_totalPerson(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _ReservationInfo_totalBigReservation(ctx context.Context, field graphql.CollectedField, obj *model.ReservationInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ReservationInfo_totalBigReservation,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalBigReservation, nil
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ReservationInfo_totalBigReservation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReservationInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ReservationInfo_totalOpenReservation(ctx context.Context, field graphql.CollectedField, obj *model.ReservationInfo) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2209,6 +2472,8 @@ func (ec *executionContext) fieldContext_ReservationInfo_byHours(_ context.Conte
 				return ec.fieldContext_ReservationInfoByHour_totalReservation(ctx, field)
 			case "totalPerson":
 				return ec.fieldContext_ReservationInfoByHour_totalPerson(ctx, field)
+			case "totalBigReservation":
+				return ec.fieldContext_ReservationInfoByHour_totalBigReservation(ctx, field)
 			case "startsAt":
 				return ec.fieldContext_ReservationInfoByHour_startsAt(ctx, field)
 			case "endsAt":
@@ -2266,6 +2531,35 @@ func (ec *executionContext) _ReservationInfoByHour_totalPerson(ctx context.Conte
 }
 
 func (ec *executionContext) fieldContext_ReservationInfoByHour_totalPerson(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReservationInfoByHour",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReservationInfoByHour_totalBigReservation(ctx context.Context, field graphql.CollectedField, obj *model.ReservationInfoByHour) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ReservationInfoByHour_totalBigReservation,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalBigReservation, nil
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ReservationInfoByHour_totalBigReservation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ReservationInfoByHour",
 		Field:      field,
@@ -3893,7 +4187,7 @@ func (ec *executionContext) unmarshalInputReservationFilter(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"firstName", "lastName", "id", "status", "dateFrom", "dateTo", "email", "phoneNumber"}
+	fieldsInOrder := [...]string{"firstName", "lastName", "id", "status", "amount", "dateFrom", "dateTo", "email", "phoneNumber"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -3928,6 +4222,13 @@ func (ec *executionContext) unmarshalInputReservationFilter(ctx context.Context,
 				return it, err
 			}
 			it.Status = data
+		case "amount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amount"))
+			data, err := ec.unmarshalOInt2ᚖint32(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Amount = data
 		case "dateFrom":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dateFrom"))
 			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
@@ -4158,6 +4459,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "sendMessageToReservation":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_sendMessageToReservation(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4320,6 +4628,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getReservationBySequence(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getBigReservation":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getBigReservation(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllReservationWithFilter":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllReservationWithFilter(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -4506,6 +4858,11 @@ func (ec *executionContext) _ReservationInfo(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "totalBigReservation":
+			out.Values[i] = ec._ReservationInfo_totalBigReservation(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "totalOpenReservation":
 			out.Values[i] = ec._ReservationInfo_totalOpenReservation(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -4567,6 +4924,11 @@ func (ec *executionContext) _ReservationInfoByHour(ctx context.Context, sel ast.
 			}
 		case "totalPerson":
 			out.Values[i] = ec._ReservationInfoByHour_totalPerson(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalBigReservation":
+			out.Values[i] = ec._ReservationInfoByHour_totalBigReservation(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

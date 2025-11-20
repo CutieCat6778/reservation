@@ -12,7 +12,6 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
-	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 	"github.com/robfig/cron/v3"
@@ -99,7 +98,6 @@ func main() {
 		AllowCredentials: true,
 	})
 
-	http.Handle("/", cors.Handler(playground.Handler("GraphQL playground", "/query")))
 	http.Handle("/query", cors.Handler(repository.Middleware()(srv)))
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)

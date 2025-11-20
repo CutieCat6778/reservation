@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"revervation/backend/database"
 	"revervation/backend/graph/model"
+	"revervation/backend/mailer"
 	"time"
 )
 
@@ -147,6 +148,55 @@ func (r *ReservationRepository) GetByFilter(filter model.ReservationFilter) ([]*
 	return r.scanReservations(rows)
 }
 
+func (r *ReservationRepository) GetAllByFilter(filter model.ReservationFilter) ([]*model.Reservation, error) {
+	query := `SELECT id, first_name, last_name, amount, phone_number, email, created_at, reserve_at, status, notes FROM reservations WHERE 1=1`
+	args := []any{}
+
+	if filter.ID != nil {
+		query += ` AND id = ?`
+		args = append(args, *filter.ID)
+	}
+	if filter.FirstName != nil {
+		query += ` AND first_name LIKE ?`
+		args = append(args, "%"+*filter.FirstName+"%")
+	}
+	if filter.LastName != nil {
+		query += ` AND last_name LIKE ?`
+		args = append(args, "%"+*filter.LastName+"%")
+	}
+	if filter.Status != nil {
+		query += ` AND status = ?`
+		args = append(args, *filter.Status)
+	}
+	if filter.Amount != nil {
+		query += ` AND amount >= ?`
+		args = append(args, *filter.Amount)
+	}
+	if filter.DateFrom != nil {
+		query += ` AND reserve_at >= ?`
+		args = append(args, *filter.DateFrom)
+	}
+	if filter.DateTo != nil {
+		query += ` AND reserve_at <= ?`
+		args = append(args, *filter.DateTo)
+	}
+	if filter.Email != nil {
+		query += ` AND email LIKE ?`
+		args = append(args, "%"+*filter.Email+"%")
+	}
+	if filter.PhoneNumber != nil {
+		query += ` AND phone_number LIKE ?`
+		args = append(args, "%"+*filter.PhoneNumber+"%")
+	}
+
+	query += ` ORDER BY reserve_at DESC`
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return r.scanReservations(rows)
+}
 func (r *ReservationRepository) UpdateStatus(id string, status model.ReservationStatus) (*model.Reservation, error) {
 	query := `UPDATE reservations SET status = ? WHERE id = ?`
 	_, err := r.db.Exec(query, status, id)
@@ -157,59 +207,69 @@ func (r *ReservationRepository) UpdateStatus(id string, status model.Reservation
 }
 
 func (r *ReservationRepository) GetStats(date *time.Time) (*model.ReservationInfo, error) {
-	var totalReservation, totalPerson, totalOpen, totalConfirmed, totalCanceled int32
+	var totalReservation, totalPerson, totalBigReservation, totalOpen, totalConfirmed, totalCanceled int32
 
-	// Overall totals query
+	// Overall totals query including big reservations
 	query := `SELECT 
 		COUNT(*), 
-		COALESCE(SUM(amount), 0), 
+		COALESCE(SUM(amount), 0),
+		COALESCE(SUM(CASE WHEN amount >= 5 THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'OPEN' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'CONFIRMED' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'CANCELED' THEN 1 ELSE 0 END), 0)
 		FROM reservations`
 	args := []any{}
 	if date != nil {
-		startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+		loc, _ := time.LoadLocation("Europe/Berlin") // adjust to your local timezone
+		startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, loc)
 		endOfDay := startOfDay.Add(24 * time.Hour)
 		query += " WHERE reserve_at >= ? AND reserve_at < ?"
-		args = append(args, startOfDay, endOfDay)
+		args = append(args, startOfDay.UTC(), endOfDay.UTC()) // convert to UTC for DB
 	}
-	err := r.db.QueryRow(query, args...).Scan(&totalReservation, &totalPerson, &totalOpen, &totalConfirmed, &totalCanceled)
+	err := r.db.QueryRow(query, args...).Scan(&totalReservation, &totalPerson, &totalBigReservation, &totalOpen, &totalConfirmed, &totalCanceled)
 	if err != nil {
 		return nil, err
 	}
 
-	// By 30-minute intervals from 17:00 to 22:30
+	// By 30-minute intervals from 17:00 to 22:30 local time
 	byHours := []*model.ReservationInfoByHour{}
+	loc, _ := time.LoadLocation("Europe/Berlin")
 	if date == nil {
-		currentDate := time.Now()
+		currentDate := time.Now().In(loc)
 		date = &currentDate
 	}
-	start := time.Date(date.Year(), date.Month(), date.Day(), 17, 0, 0, 0, time.UTC)
-	end := time.Date(date.Year(), date.Month(), date.Day(), 22, 30, 0, 0, time.UTC)
 
-	for current := start; current.Before(end); current = current.Add(30 * time.Minute) {
+	startLocal := time.Date(date.Year(), date.Month(), date.Day(), 17, 0, 0, 0, loc)
+	endLocal := time.Date(date.Year(), date.Month(), date.Day(), 22, 30, 0, 0, loc)
+
+	for current := startLocal; current.Before(endLocal); current = current.Add(30 * time.Minute) {
 		next := current.Add(30 * time.Minute)
-		var hourTotal, hourPerson int32
-		hourQuery := `SELECT COUNT(*), COALESCE(SUM(amount), 0) 
-				FROM reservations 
-				WHERE reserve_at >= ? AND reserve_at < ? AND status = ?`
-		err := r.db.QueryRow(hourQuery, current, next, model.ReservationStatusConfirmed).Scan(&hourTotal, &hourPerson)
+
+		var hourTotal, hourPerson, hourBig int32
+		hourQuery := `SELECT 
+				COUNT(*),
+				COALESCE(SUM(amount),0),
+				COALESCE(SUM(CASE WHEN amount >= 5 THEN 1 ELSE 0 END),0)
+			FROM reservations
+			WHERE reserve_at >= ? AND reserve_at < ? AND status = ?`
+		err := r.db.QueryRow(hourQuery, current.UTC(), next.UTC(), "OPEN").Scan(&hourTotal, &hourPerson, &hourBig)
 		if err != nil {
 			return nil, err
 		}
 
 		byHours = append(byHours, &model.ReservationInfoByHour{
-			TotalReservation: hourTotal,
-			TotalPerson:      hourPerson,
-			StartsAt:         current,
-			EndsAt:           next,
+			TotalReservation:    hourTotal,
+			TotalPerson:         hourPerson,
+			TotalBigReservation: hourBig,
+			StartsAt:            current,
+			EndsAt:              next,
 		})
 	}
 
 	return &model.ReservationInfo{
 		TotalReservation:          totalReservation,
 		TotalPerson:               totalPerson,
+		TotalBigReservation:       totalBigReservation,
 		TotalOpenReservation:      totalOpen,
 		TotalConfirmedReservation: totalConfirmed,
 		TotalCanceledReservation:  totalCanceled,
@@ -242,6 +302,22 @@ func (r *ReservationRepository) scanReservation(row *sql.Row) (*model.Reservatio
 	reservation.Status = model.ReservationStatus(status)
 
 	return &reservation, nil
+}
+
+func (r *ReservationRepository) SendMessageToReservation(id string, content string, mailer *mailer.Mailer) error {
+	resv, err := r.GetByID(id)
+	if err != nil {
+		return err
+	}
+	if resv == nil || resv.Email == "" {
+		return fmt.Errorf("reservation not found or missing email")
+	}
+
+	if err := mailer.SendCustomHTMLEmail(resv.Email, "Ihre Reservierung bei Yoake", content); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *ReservationRepository) scanReservations(rows *sql.Rows) ([]*model.Reservation, error) {

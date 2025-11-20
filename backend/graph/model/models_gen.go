@@ -54,6 +54,7 @@ type ReservationFilter struct {
 	LastName    *string            `json:"lastName,omitempty"`
 	ID          *string            `json:"id,omitempty"`
 	Status      *ReservationStatus `json:"status,omitempty"`
+	Amount      *int32             `json:"amount,omitempty"`
 	DateFrom    *time.Time         `json:"dateFrom,omitempty"`
 	DateTo      *time.Time         `json:"dateTo,omitempty"`
 	Email       *string            `json:"email,omitempty"`
@@ -63,6 +64,7 @@ type ReservationFilter struct {
 type ReservationInfo struct {
 	TotalReservation          int32                    `json:"totalReservation"`
 	TotalPerson               int32                    `json:"totalPerson"`
+	TotalBigReservation       int32                    `json:"totalBigReservation"`
 	TotalOpenReservation      int32                    `json:"totalOpenReservation"`
 	TotalConfirmedReservation int32                    `json:"totalConfirmedReservation"`
 	TotalCanceledReservation  int32                    `json:"totalCanceledReservation"`
@@ -70,10 +72,11 @@ type ReservationInfo struct {
 }
 
 type ReservationInfoByHour struct {
-	TotalReservation int32     `json:"totalReservation"`
-	TotalPerson      int32     `json:"totalPerson"`
-	StartsAt         time.Time `json:"startsAt"`
-	EndsAt           time.Time `json:"endsAt"`
+	TotalReservation    int32     `json:"totalReservation"`
+	TotalPerson         int32     `json:"totalPerson"`
+	TotalBigReservation int32     `json:"totalBigReservation"`
+	StartsAt            time.Time `json:"startsAt"`
+	EndsAt              time.Time `json:"endsAt"`
 }
 
 type Subscription struct {

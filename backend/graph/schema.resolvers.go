@@ -129,6 +129,13 @@ func (r *mutationResolver) LoginWithReservation(ctx context.Context, id string, 
 	return auth.LoginWithReservation(id, lastName)
 }
 
+// SendMessageToReservation is the resolver for the sendMessageToReservation field.
+func (r *mutationResolver) SendMessageToReservation(ctx context.Context, id string, content string) (bool, error) {
+	repo := repository.NewReservationRepository()
+	err := repo.SendMessageToReservation(id, content, r.mailer)
+	return err == nil, err
+}
+
 // GetReservation is the resolver for the getReservation field.
 func (r *queryResolver) GetReservation(ctx context.Context, filter model.ReservationFilter) ([]*model.Reservation, error) {
 	user := repository.ForContext(ctx)
@@ -228,6 +235,50 @@ func (r *queryResolver) GetReservationBySequence(ctx context.Context, sequence i
 	}
 
 	return repo.GetByFilter(filter)
+}
+
+// GetBigReservation is the resolver for the getBigReservation field.
+func (r *queryResolver) GetBigReservation(ctx context.Context) ([]*model.Reservation, error) {
+	user := repository.ForContext(ctx)
+	if user == nil {
+		return nil, fmt.Errorf("Unauthenticated")
+	}
+	if !user.IsAdmin {
+		return nil, fmt.Errorf("Unauthenticated")
+	}
+
+	amount := int32(5)
+
+	repo := repository.NewReservationRepository()
+	filter := model.ReservationFilter{
+		Amount: &amount, // 5 or more persons
+	}
+	all, err := repo.GetAllByFilter(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	var bigReservations []*model.Reservation
+	for _, res := range all {
+		if res.Amount >= 5 {
+			bigReservations = append(bigReservations, res)
+		}
+	}
+
+	return bigReservations, nil
+}
+
+// GetAllReservationWithFilter is the resolver for the getAllReservationWithFilter field.
+func (r *queryResolver) GetAllReservationWithFilter(ctx context.Context, filter model.ReservationFilter) ([]*model.Reservation, error) {
+	user := repository.ForContext(ctx)
+	if user == nil {
+		return nil, fmt.Errorf("Unauthenticated")
+	}
+	if !user.IsAdmin {
+		return nil, fmt.Errorf("Unauthenticated")
+	}
+	repo := repository.NewReservationRepository()
+	return repo.GetAllByFilter(filter)
 }
 
 // ReservationUpdated is the resolver for the reservationUpdated field.

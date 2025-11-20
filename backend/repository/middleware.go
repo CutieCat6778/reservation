@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strings"
 )
 
 var userCtxKey = &contextKey{"user"}
@@ -20,11 +21,13 @@ func Middleware() func(http.Handler) http.Handler {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			c := r.Header.Get("Authentication")
-			if c == "" {
+			cRaw := r.Header.Get("Authorization")
+			if cRaw == "" {
 				next.ServeHTTP(w, r)
 				return
 			}
+
+			c := strings.Split(cRaw, " ")[1]
 
 			token, err := authService.ValidateToken(c)
 			if err != nil {

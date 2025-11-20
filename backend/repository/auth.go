@@ -45,7 +45,7 @@ func (a *AuthService) LoginWithReservation(id string, lastName string) (*model.L
 	}
 
 	if res == nil || res.LastName == "" {
-		return nil, errors.New("invalid reservation")
+		return nil, errors.New("Reservierung nicht gefunden")
 	}
 
 	if res.LastName != lastName {

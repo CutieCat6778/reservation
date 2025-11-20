@@ -1,7 +1,3 @@
-# GraphQL schema example
-#
-# https://gqlgen.com/getting-started/
-
 scalar Time
 enum ReservationStatus {
   OPEN
@@ -39,6 +35,7 @@ type Reservation {
 type ReservationInfo {
   totalReservation: Int!
   totalPerson: Int!
+  totalBigReservation: Int!
   totalOpenReservation: Int!
   totalConfirmedReservation: Int!
   totalCanceledReservation: Int!
@@ -48,6 +45,7 @@ type ReservationInfo {
 type ReservationInfoByHour {
   totalReservation: Int!
   totalPerson: Int!
+  totalBigReservation: Int!
   startsAt: Time!
   endsAt: Time!
 }
@@ -62,6 +60,7 @@ input ReservationFilter {
   lastName: String
   id: ID
   status: ReservationStatus
+  amount: Int 
   dateFrom: Time
   dateTo: Time
   email: String
@@ -96,6 +95,8 @@ type Query {
   getReservationToday: [Reservation!]!
   getReservationInfoToday: ReservationInfo!
   getReservationBySequence(sequence: Int!): [Reservation!]!
+  getBigReservation: [Reservation!]!
+  getAllReservationWithFilter(filter: ReservationFilter!): [Reservation!]!
 }
 
 type Mutation {
@@ -106,6 +107,7 @@ type Mutation {
   declineReservation(id: ID!): Reservation!
   login(username: String!, password: String!): String!
   loginWithReservation(id: ID!, lastName: String!): LoginWithReservationResponse!
+  sendMessageToReservation(id: ID!, content: String!): Boolean!
 }
 
 type Subscription {
