@@ -30,7 +30,7 @@ const SEND_MESSAGE_TO_RESERVATION = gql`
 
 const GET_ALL_RESERVATION = gql`
   query GetAllReservation {
-    getAllReservation {
+    getReservationToday {
       id
       firstName
       lastName
@@ -156,7 +156,7 @@ export default function ReservationSlugPage({ slug }: Props) {
     const templates = emailTemplates(selectedReservation) as any;
     let content: any = templates[selectedTemplate].body;
     content += `<a
-          href="${process.env.NEXT_PUBLIC_SERVER_URI}/reservation?id=${reservation.id}"
+          href="${process.env.NEXT_PUBLIC_FRONTEND_URI}/reservation?id=${reservation.id}"
           target="_blank"
           rel="noopener noreferrer"
         >
