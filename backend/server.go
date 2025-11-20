@@ -41,9 +41,8 @@ func resetDatabase() {
 }
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using defaults")
 	}
 
 	port := os.Getenv("PORT")
@@ -56,9 +55,9 @@ func main() {
 	}
 	defer database.Close()
 
-	// Set up cron job to reset DB at 8:00 AM every day
+	// Cron job to reset DB every day at 08:00
 	c := cron.New()
-	_, err = c.AddFunc("0 8 * * *", resetDatabase) // every day at 08:00
+	_, err := c.AddFunc("0 8 * * *", resetDatabase)
 	if err != nil {
 		log.Fatalf("Failed to schedule cron: %v", err)
 	}
@@ -66,40 +65,35 @@ func main() {
 	defer c.Stop()
 
 	resolver := graph.NewResolver()
-
-	srv := handler.New(
-		graph.NewExecutableSchema(
-			graph.Config{
-				Resolvers: resolver,
-			},
-		),
-	)
+	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
 
 	srv.AddTransport(&transport.Websocket{
 		Upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
 	})
-
 	srv.AddTransport(transport.Options{})
 	srv.AddTransport(transport.GET{})
 	srv.AddTransport(transport.POST{})
 
 	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
-
 	srv.Use(extension.Introspection{})
 	srv.Use(extension.AutomaticPersistedQuery{
 		Cache: lru.New[string](100),
 	})
-	cors := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "https://reserve.thinis.de", "https://server.reserve.thinis.de"}, // your frontend origin
+
+	// Correct CORS setup
+	corsHandler := cors.New(cors.Options{
+		AllowedOrigins:   []string{"https://reserve.thinis.de"}, // only your frontend
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
-	})
+	}).Handler
 
-	http.Handle("/query", cors.Handler(repository.Middleware()(srv)))
+	// ServeMux to ensure routing works exactly
+	mux := http.NewServeMux()
+	mux.Handle("/query", corsHandler(repository.Middleware()(srv)))
 
-	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Printf("Server running on https://server.thinis.de:%s/query", port)
+	log.Fatal(http.ListenAndServe(":"+port, mux))
 }
