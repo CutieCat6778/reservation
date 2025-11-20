@@ -92,7 +92,7 @@ func main() {
 		Cache: lru.New[string](100),
 	})
 	cors := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"}, // your frontend origin
+		AllowedOrigins:   []string{"http://localhost:3000", "https://reserve.thinis.de"}, // your frontend origin
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
