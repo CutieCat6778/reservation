@@ -1,11 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation } from "@apollo/client/react";
 import { CREATE_RESERVATION } from "@/graphql/mutations"; // import your mutation
+import { LoginWithReservationResponse } from "@/lib/modelTypes";
 
 export default function ReservationForm() {
   const [phase, setPhase] = useState(1);
+  const router = useRouter();
+  const [reservationCreated, setReservationCreated] = useState<{
+    id: string;
+    token: string;
+  } | null>(null);
 
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState("");
@@ -17,21 +24,18 @@ export default function ReservationForm() {
   const [lastName, setLastName] = useState("");
   const [message, setMessage] = useState("");
 
-  const [createReservation, { loading, error }] = useMutation(CREATE_RESERVATION);
+  const [createReservation, { loading, error }] = useMutation<{ createReservation: LoginWithReservationResponse }>(
+    CREATE_RESERVATION
+  );
 
   const handleNext = async () => {
     if (phase === 1 && (!date || !time || persons < 1)) return;
-    if (
-      phase === 2 &&
-      (!email || !phone || phone.length < 10 || !lastName)
-    )
-      return;
+    if (phase === 2 && (!email || !phone || phone.length < 10 || !lastName)) return;
 
     if (phase === 2) {
-      // combine date + time
       const reserveAt = new Date(`${date}T${time}`);
       try {
-        await createReservation({
+        const { data } = await createReservation({
           variables: {
             firstName,
             lastName,
@@ -42,6 +46,18 @@ export default function ReservationForm() {
             notes: message || "",
           },
         });
+
+        const reservationId = data?.createReservation?.reservation?.id;
+        const token = data?.createReservation?.token;
+
+        if (reservationId && token) {
+          localStorage.setItem(
+            "userToken",
+            JSON.stringify({ token, expire: Date.now() + 24 * 60 * 60 * 1000 })
+          );
+          setReservationCreated({ id: reservationId, token });
+          return;
+        }
       } catch (e) {
         console.error("Error creating reservation:", e);
         return;
@@ -53,7 +69,7 @@ export default function ReservationForm() {
 
   const handlePrev = () => setPhase(phase - 1);
 
-  const progressValue = phase === 1 ? 33 : phase === 2 ? 66 : 100;
+  const progressValue = phase === 1 ? 50 : 100;
   const today = new Date().toISOString().slice(0, 10);
 
   return (
@@ -155,10 +171,19 @@ export default function ReservationForm() {
         </>
       )}
 
-      {phase === 3 && (
-        <div className="text-center py-8">
-          <h2 className="text-xl font-bold mb-4">Danke für Ihre Reservierung!</h2>
-          <p>Bitte prüfen Sie Ihre E-Mails für die Bestätigung.</p>
+      {/* Success Modal */}
+      {reservationCreated && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-base-100 p-6 rounded-xl shadow-lg w-full max-w-md text-center">
+            <h2 className="text-xl font-bold mb-4">Reservierung erfolgreich!</h2>
+            <p className="mb-6">Ihre Reservierung wurde erfolgreich erstellt.</p>
+            <button
+              className="btn btn-primary"
+              onClick={() => router.push(`/reservation?id=${reservationCreated.id}`)}
+            >
+              Reservierungsdetails ansehen
+            </button>
+          </div>
         </div>
       )}
     </fieldset>

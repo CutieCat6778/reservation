@@ -25,3 +25,9 @@ mutation CreateReservation($firstName: String, $lastName: String!, $phoneNumber:
   }
 }
 `
+
+export const LOGIN_ADMIN = gql`
+  mutation Login($username: String!, $password: String!) {
+    login(username: $username, password: $password)
+  }
+`
