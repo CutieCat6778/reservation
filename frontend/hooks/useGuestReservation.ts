@@ -61,21 +61,21 @@ export const useGuestReservation = () => {
     }
   };
 
-  const handleUpdate = async (field: keyof Reservation, value: any) => {
+  const handleUpdate = async (field: keyof Reservation, value: string | number | null) => {
     if (!reservation || !token) return;
     try {
       const { data } = await update({
         variables: { input: { id: reservation.id, [field]: value } },
         context: { headers: { Authorization: `Bearer ${token}` } },
       });
-      if(!data) throw new Error("Änderung nicht gespeichert")
-      setReservation(data.updateReservation);
-      showNotification("Änderung gespeichert");
-    } catch {
+      if (data?.updateReservation) {
+        setReservation(data.updateReservation);
+        showNotification("Änderung gespeichert");
+      }
+    } catch (err) {
       showNotification("Fehler beim Speichern");
     }
   };
-
   const handleCancel = async () => {
     if (!reservation || !token) return;
     try {

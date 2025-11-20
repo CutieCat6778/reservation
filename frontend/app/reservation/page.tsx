@@ -55,13 +55,14 @@ export default function GuestReservationPage() {
               <ReservationStatusBadge status={reservation.status} />
             </div>
 
-            <EditableField label="Vorname" value={reservation.firstName} field="firstName" onSave={handleUpdate} />
-            <EditableField label="Nachname" value={reservation.lastName} field="lastName" onSave={handleUpdate} />
-            <EditableField label="Telefon" value={reservation.phoneNumber} field="phoneNumber" onSave={handleUpdate} />
-            <EditableField label="E-Mail" value={reservation.email} field="email" onSave={handleUpdate} />
-            <EditableField label="Personen" value={reservation.amount} field="amount" type="number" onSave={handleUpdate} />
-            <EditableField label="Datum & Uhrzeit" value={reservation.reserveAt} field="reserveAt" type="datetime-local" onSave={handleUpdate} />
-            <EditableField label="Notizen" value={reservation.notes} field="notes" onSave={handleUpdate} />
+
+            <EditableField label="Vorname"        value={reservation.firstName || ""}      field="firstName"     onSave={handleUpdate} />
+            <EditableField label="Nachname"       value={reservation.lastName}       field="lastName"      onSave={handleUpdate} />
+            <EditableField label="Telefon"        value={reservation.phoneNumber}    field="phoneNumber"   onSave={handleUpdate} />
+            <EditableField label="E-Mail"         value={reservation.email}          field="email"         onSave={handleUpdate} type="email" />
+            <EditableField label="Personen"       value={reservation.amount}         field="amount"        onSave={handleUpdate} type="number" />
+            <EditableField label="Datum & Uhrzeit" value={reservation.reserveAt}     field="reserveAt"     onSave={handleUpdate} type="datetime-local" />
+            <EditableField label="Notizen"        value={reservation.notes || ""}          field="notes"         onSave={handleUpdate} />
 
             <div className="flex flex-col sm:flex-row gap-4 mt-8">
               <button
