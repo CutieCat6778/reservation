@@ -1,0 +1,69 @@
+import { Reservation } from "@/lib/modelTypes";
+import { formatDate } from "@/lib/utils";
+
+interface Props {
+  reservation: Reservation;
+  expanded: boolean;
+  onToggle: () => void;
+  onConfirm: () => void;
+  onDecline: () => void;
+  onOpen: () => void;
+  onChangeTime: () => void;
+}
+
+export default function ReservationCard({
+  reservation,
+  expanded,
+  onToggle,
+  onConfirm,
+  onDecline,
+  onOpen,
+  onChangeTime,
+}: Props) {
+  const isBig = reservation.amount >= 5;
+  const statusColor =
+    reservation.status === "CONFIRMED" ? "badge-success" :
+    ["CANCELED", "DECLINED"].includes(reservation.status) ? "badge-error" :
+    reservation.status === "OPEN" ? "badge-warning" : "badge-ghost";
+
+  return (
+    <div className={`card shadow ${isBig ? "bg-amber-200" : "bg-base-200"}`}>
+      <div className="card-body">
+        <div className="cursor-pointer" onClick={onToggle}>
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="card-title">{reservation.firstName} {reservation.lastName}</h2>
+              <p className="text-sm">{reservation.amount} Personen – {formatDate(reservation.reserveAt)}</p>
+              <p className="text-sm font-semibold">
+                Status: <span className={`badge ${statusColor}`}>{reservation.status}</span>
+              </p>
+            </div>
+            <svg className={`w-6 h-6 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+
+        {expanded && (
+          <div className="mt-4 space-y-4 border-t pt-4">
+            {/* Details */}
+            {["phoneNumber", "email", "notes"].map(field => (
+              <div key={field}>
+                <p className="text-sm font-semibold">{field === "phoneNumber" ? "Telefon" : field === "email" ? "E-Mail" : "Notizen"}:</p>
+                <p className="text-sm">{reservation[field as keyof Reservation] || "–"}</p>
+              </div>
+            ))}
+            <p className="text-sm"><strong>Erstellt:</strong> {formatDate(reservation.createdAt)}</p>
+
+            <div className="flex flex-wrap gap-2">
+              <button className="btn btn-warning btn-sm" onClick={onOpen} disabled={reservation.status === "OPEN"}>Offen</button>
+              <button className="btn btn-success btn-sm" onClick={onConfirm} disabled={reservation.status === "CONFIRMED"}>Bestätigen</button>
+              <button className="btn btn-error btn-sm" onClick={onDecline} disabled={["CANCELED", "DECLINED"].includes(reservation.status)}>Ablehnen</button>
+              <button className="btn btn-outline btn-sm" onClick={onChangeTime}>Zeit ändern</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
