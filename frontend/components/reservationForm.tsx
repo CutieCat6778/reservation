@@ -67,28 +67,28 @@ export default function ReservationForm() {
           />
         </div>
 
-        <div className="card-body p-8 sm:p-10 gap-8">
+        <div className="card-body p-8 sm:p-10 gap-8 w-full">
           {/* Phase 1 */}
           {phase === 1 && (
-            <div className="space-y-8">
-              <div className="form-control">
+            <div className="space-y-8 w-full">
+              <div className="form-control w-full">
                 <label className="label"><span className="label-text font-medium">Datum</span></label>
                 <br/>
-                <input type="date" className="input input-bordered input-lg rounded-xl" value={date} min={today}
+                <input type="date" className="input input-bordered input-lg rounded-xl w-full" value={date} min={today}
                        onChange={(e) => setDate(e.target.value)} />
               </div>
 
-              <div className="form-control">
+              <div className="form-control w-full">
                 <label className="label"><span className="label-text font-medium">Uhrzeit</span></label>
                 <br/>
-                <input type="time" className="input input-bordered input-lg rounded-xl" value={time}
+                <input type="time" className="input input-bordered input-lg rounded-xl w-full" value={time}
                        onChange={(e) => setTime(e.target.value)} />
               </div>
 
-              <div className="form-control">
+              <div className="form-control w-ful">
                 <label className="label"><span className="label-text font-medium">Personenanzahl</span></label>
                 <br/>
-                <input type="number" className="input input-bordered input-lg rounded-xl" value={persons} min="1"
+                <input type="number" className="input input-bordered input-lg rounded-xl w-full" value={persons} min="1"
                        onChange={(e) => setPersons(Math.max(1, parseInt(e.target.value) || 1))} />
               </div>
 
