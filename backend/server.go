@@ -12,6 +12,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/go-chi/chi"
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 	"github.com/robfig/cron/v3"
@@ -55,6 +56,15 @@ func main() {
 	}
 	defer database.Close()
 
+	router := chi.NewRouter()
+
+	router.Use(cors.New(cors.Options{
+		AllowedOrigins:   []string{"https://reserve.thinis.de", "http://localhost:3000"}, // only your frontend
+		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowCredentials: true,
+	}).Handler)
+
 	// Cron job to reset DB every day at 08:00
 	c := cron.New()
 	_, err := c.AddFunc("0 8 * * *", resetDatabase)
@@ -69,9 +79,15 @@ func main() {
 
 	srv.AddTransport(&transport.Websocket{
 		Upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool { return true },
+			CheckOrigin: func(r *http.Request) bool {
+				// Check against your desired domains here
+				return r.Host == "reserve.thinis.de"
+			},
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
 		},
 	})
+
 	srv.AddTransport(transport.Options{})
 	srv.AddTransport(transport.GET{})
 	srv.AddTransport(transport.POST{})
@@ -82,18 +98,12 @@ func main() {
 		Cache: lru.New[string](100),
 	})
 
-	// Correct CORS setup
-	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://reserve.thinis.de"}, // only your frontend
-		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type"},
-		AllowCredentials: true,
-	}).Handler
-
-	// ServeMux to ensure routing works exactly
-	mux := http.NewServeMux()
-	mux.Handle("/query", corsHandler(repository.Middleware()(srv)))
+	router.Handle("/query", repository.Middleware()(srv))
 
 	log.Printf("Server running on https://server.thinis.de:%s/query", port)
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+
+	err = http.ListenAndServe(":8080", router)
+	if err != nil {
+		panic(err)
+	}
 }
