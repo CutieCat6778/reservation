@@ -3,41 +3,36 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@apollo/client/react";
-import { CREATE_RESERVATION } from "@/graphql/mutations"; // import your mutation
-import { LoginWithReservationResponse } from "@/lib/modelTypes";
+import { CREATE_RESERVATION } from "@/graphql/mutations";
+import { LoginWithReservationResponse } from "@/lib/modelTypes"
 
 export default function ReservationForm() {
   const [phase, setPhase] = useState(1);
   const router = useRouter();
-  const [reservationCreated, setReservationCreated] = useState<{
-    id: string;
-    token: string;
-  } | null>(null);
+  const [success, setSuccess] = useState<{ id: string; token: string } | null>(null);
 
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState("");
   const [persons, setPersons] = useState(2);
-
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [message, setMessage] = useState("");
 
-  const [createReservation, { loading, error }] = useMutation<{ createReservation: LoginWithReservationResponse }>(
-    CREATE_RESERVATION
-  );
+  const [createReservation, { loading, error }] = useMutation<{createReservation: LoginWithReservationResponse}>(CREATE_RESERVATION);
+  const today = new Date().toISOString().slice(0, 10);
 
   const handleNext = async () => {
     if (phase === 1 && (!date || !time || persons < 1)) return;
-    if (phase === 2 && (!email || !phone || phone.length < 10 || !lastName)) return;
+    if (phase === 2 && (!email || !phone || phone.length < 9 || !lastName)) return;
 
     if (phase === 2) {
       const reserveAt = new Date(`${date}T${time}`);
       try {
         const { data } = await createReservation({
           variables: {
-            firstName,
+            firstName: firstName || null,
             lastName,
             phoneNumber: phone,
             email,
@@ -46,147 +41,137 @@ export default function ReservationForm() {
             notes: message || "",
           },
         });
-
-        const reservationId = data?.createReservation?.reservation?.id;
+        const id = data?.createReservation?.reservation?.id;
         const token = data?.createReservation?.token;
-
-        if (reservationId && token) {
-          localStorage.setItem(
-            "userToken",
-            JSON.stringify({ token, expire: Date.now() + 24 * 60 * 60 * 1000 })
-          );
-          setReservationCreated({ id: reservationId, token });
-          return;
+        if (id && token) {
+          localStorage.setItem("userToken", JSON.stringify({ token, expire: Date.now() + 86400000 }));
+          setSuccess({ id, token });
         }
       } catch (e) {
-        console.error("Error creating reservation:", e);
-        return;
+        console.error(e);
       }
+      return;
     }
-
-    setPhase(phase + 1);
+    setPhase(2);
   };
 
-  const handlePrev = () => setPhase(phase - 1);
-
-  const progressValue = phase === 1 ? 50 : 100;
-  const today = new Date().toISOString().slice(0, 10);
-
   return (
-    <fieldset className="fieldset bg-base-200 border-base-300 rounded-box w-lg border p-4 mt-6 px-8">
-      <legend className="fieldset-legend w-full">
-        <progress className="progress w-full" value={progressValue} max="100"></progress>
-      </legend>
-
-      {phase === 1 && (
-        <>
-          <label className="label w-full">Datum</label>
-          <input
-            type="date"
-            className="input w-full"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            required
-            min={today}
+    <>
+      {/* Beautiful DaisyUI Card */}
+      <div className="card w-full max-w-2xl mx-1 sm:mx-auto bg-base-100 shadow-2xl rounded-3xl overflow-hidden">
+        {/* Progress */}
+        <div className="w-full bg-base-300 h-2">
+          <div
+            className="h-full bg-black transition-all duration-500"
+            style={{ width: phase === 1 ? "50%" : "100%" }}
           />
-          <label className="label">Uhrzeit</label>
-          <input
-            type="time"
-            className="input w-full"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            required
-          />
-          <label className="label">Personenanzahl</label>
-          <input
-            type="number"
-            className="input w-full"
-            value={persons}
-            onChange={(e) => setPersons(Math.max(1, parseInt(e.target.value) || 1))}
-            min={1}
-            required
-          />
-          <div className="flex justify-end mt-4">
-            <button className="btn btn-neutral w-1/2" onClick={handleNext}>
-              Weiter
-            </button>
-          </div>
-        </>
-      )}
-
-      {phase === 2 && (
-        <>
-          <label className="label">Email</label>
-          <input
-            type="email"
-            className="input w-full"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <label className="label">Telefonnummer</label>
-          <input
-            type="tel"
-            className="input w-full"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value.replace(/\D/, ""))}
-            required
-            minLength={10}
-            maxLength={15}
-          />
-          <label className="label">Vorname</label>
-          <input
-            type="text"
-            className="input w-full"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-          />
-          <label className="label">Nachname</label>
-          <input
-            type="text"
-            className="input w-full"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            required
-          />
-          <label className="label">Nachricht an Team</label>
-          <textarea
-            className="textarea w-full rounded-xl"
-            placeholder="Schreibe hier"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-          />
-
-          {error && <p className="text-red-500 mt-2">{error.message}</p>}
-          {loading && <p className="mt-2">Reservierung wird erstellt...</p>}
-
-          <div className="flex justify-between mt-4">
-            <button className="btn btn-outline w-1/2 mr-2" onClick={handlePrev}>
-              Zurück
-            </button>
-            <button className="btn btn-neutral w-1/2 ml-2" onClick={handleNext}>
-              Weiter
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Success Modal */}
-      {reservationCreated && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-base-100 p-6 rounded-xl shadow-lg w-full max-w-md text-center">
-            <h2 className="text-xl font-bold mb-4">Reservierung erfolgreich!</h2>
-            <p className="mb-6">Ihre Reservierung wurde erfolgreich erstellt.</p>
-            <button
-              className="btn btn-primary"
-              onClick={() => router.push(`/reservation?id=${reservationCreated.id}`)}
-            >
-              Reservierungsdetails ansehen
-            </button>
-          </div>
         </div>
+
+        <div className="card-body p-8 sm:p-10 gap-8">
+          {/* Phase 1 */}
+          {phase === 1 && (
+            <div className="space-y-8">
+              <div className="form-control">
+                <label className="label"><span className="label-text font-medium">Datum</span></label>
+                <br/>
+                <input type="date" className="input input-bordered input-lg rounded-xl" value={date} min={today}
+                       onChange={(e) => setDate(e.target.value)} />
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text font-medium">Uhrzeit</span></label>
+                <br/>
+                <input type="time" className="input input-bordered input-lg rounded-xl" value={time}
+                       onChange={(e) => setTime(e.target.value)} />
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text font-medium">Personenanzahl</span></label>
+                <br/>
+                <input type="number" className="input input-bordered input-lg rounded-xl" value={persons} min="1"
+                       onChange={(e) => setPersons(Math.max(1, parseInt(e.target.value) || 1))} />
+              </div>
+
+              <button onClick={handleNext} className="btn btn-black btn-lg w-full rounded-xl">
+                Weiter
+              </button>
+            </div>
+          )}
+
+          {/* Phase 2 */}
+          {phase === 2 && (
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="form-control sm:block flex justify-between items-center">
+                  <label className="label"><span className="label-text font-medium">Email *</span></label>
+                  <input type="email" placeholder="max@mustermann.de" className="input input-bordered input-lg rounded-xl"
+                         value={email} onChange={(e) => setEmail(e.target.value)} required />
+                </div>
+                <div className="form-control sm:block flex justify-between items-center">
+                  <label className="label"><span className="label-text font-medium">Telefon *</span></label>
+                  <input type="tel" placeholder="0176 12345678" className="input input-bordered input-lg rounded-xl"
+                         value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} required />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="form-control">
+                  <label className="label"><span className="label-text font-medium">Vorname</span></label>
+                  <input type="text" className="input input-bordered input-lg rounded-xl"
+                         value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                </div>
+                <div className="form-control">
+                  <label className="label"><span className="label-text font-medium">Nachname *</span></label>
+                  <input type="text" className="input input-bordered input-lg rounded-xl"
+                         value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                </div>
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text font-medium">Nachricht (optional)</span></label>
+                <br/>
+                <textarea className="textarea textarea-bordered h-28 rounded-xl resize-none w-full"
+                          placeholder="Allergien, besondere Wünsche…" value={message}
+                          onChange={(e) => setMessage(e.target.value)} />
+              </div>
+
+              {error && <div className="alert alert-error shadow-lg"><span>{error.message}</span></div>}
+              {loading && <span className="loading loading-spinner loading-lg mx-auto"></span>}
+
+              <div className="flex gap-4 mt-6">
+                <button onClick={() => setPhase(1)} className="btn btn-ghost btn-lg flex-1 rounded-xl">
+                  Zurück
+                </button>
+                <button onClick={handleNext} disabled={loading}
+                        className="btn btn-black btn-lg flex-1 rounded-xl">
+                  {loading ? <span className="loading loading-spinner"></span> : "Reservieren"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Success Modal – pure DaisyUI */}
+      {success && (
+        <dialog open className="modal modal-bottom sm:modal-middle">
+          <div className="modal-box text-center">
+            <div className="mx-auto mb-6 w-20 h-20 rounded-full bg-success/10 flex items-center justify-center">
+              <svg className="w-12 h-12 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            <h3 className="font-bold text-2xl mb-3">Reservierung erfolgreich!</h3>
+            <p className="text-base-content/70 mb-8">Wir haben Ihre Angaben erhalten und senden Ihnen in Kürze eine Bestätigung per E-Mail zu. Wir freuen uns auf Ihren Besuch.</p>
+            <div className="modal-action justify-center">
+              <button className="btn btn-black btn-lg rounded-xl"
+                      onClick={() => router.push(`/reservation?id=${success.id}`)}>
+                Zur Reservierung
+              </button>
+            </div>
+          </div>
+        </dialog>
       )}
-    </fieldset>
+    </>
   );
 }
-

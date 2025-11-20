@@ -24,14 +24,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClientApolloProvider>
       <html lang="de" data-theme="cupcake">
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
+        <ClientApolloProvider>
           {children}
-        </body>
-      </html>
-    </ClientApolloProvider>
+        </ClientApolloProvider>
+      </body>
+    </html>
   );
 }
