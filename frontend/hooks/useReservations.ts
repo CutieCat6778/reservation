@@ -3,15 +3,15 @@ import { useLazyQuery, useMutation } from "@apollo/client/react";
 import {
   GET_BIG_RESERVATION,
   GET_ALL_RESERVATION_TODAY,
-  GET_ALL_RESERVATION_WITH_FILTER,
-} from "@/graphql/queries";
+  GET_ALL_RESERVATION_WITH_FILTER, } from "@/graphql/queries";
 import {
   CONFIRM_RESERVATION,
   DECLINE_RESERVATION,
   UPDATE_RESERVATION,
   SEND_MESSAGE_TO_RESERVATION,
+  OPEN_RESERVATION,
 } from "@/graphql/mutations";
-import { Reservation, ReservationFilter } from "@/lib/modelTypes";
+import { Reservation } from "@/lib/modelTypes";
 
 const QUERY_MAP = {
   "big-tables": { query: GET_BIG_RESERVATION, dataKey: "getBigReservation", useFilter: false },
@@ -38,6 +38,7 @@ export const useReservations = (slug: string) => {
   const [decline] = useMutation(DECLINE_RESERVATION);
   const [update] = useMutation(UPDATE_RESERVATION);
   const [sendMessage] = useMutation(SEND_MESSAGE_TO_RESERVATION);
+  const [openReservation] = useMutation(OPEN_RESERVATION);
 
   useEffect(() => {
     const t = localStorage.getItem("adminToken");
@@ -68,6 +69,7 @@ export const useReservations = (slug: string) => {
     loading,
     error,
     refetch,
+    openReservation: (id: string) => openReservation({ variables: { id }, ...authContext }),
     confirm: (id: string) => confirm({ variables: { id }, ...authContext }),
     decline: (id: string) => decline({ variables: { id }, ...authContext }),
     update: (input: any) => update({ variables: { input }, ...authContext }),

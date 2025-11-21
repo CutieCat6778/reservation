@@ -1,5 +1,5 @@
 import { Reservation } from "@/lib/modelTypes";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatTime } from "@/lib/utils";
 import ReservationStatusBadge from "@/components/ReservationStatusBadge"
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
   onChangeTime: () => void;
 }
 
-export default function ReservationCard({
+export default function ReservationList({
   reservation,
   expanded,
   onToggle,
@@ -24,22 +24,23 @@ export default function ReservationCard({
   const isBig = reservation.amount >= 5;
 
   return (
-    <div className={`card shadow ${isBig ? "bg-amber-200" : "bg-base-200"}`}>
-      <div className="card-body">
+    <div className={`shadow ${isBig ? "bg-red-100" : "bg-base-200"} px-4 py-2`}>
+      <div className="">
         <div className="cursor-pointer" onClick={onToggle}>
           <div className="flex justify-between items-center">
-            <div>
-              <h2 className="card-title">{reservation.firstName} {reservation.lastName}</h2>
-              <p className="text-sm">{reservation.amount} Personen – {formatDate(reservation.reserveAt)}</p>
-            </div>
-            <div className="flex items-center">
-              <p className="text-sm font-semibold mr-4">
+            <div className="flex items-center justify-between w-full mr-4">
+              <div className="flex items-center">
+                <h2 className="card-title mr-2">{reservation.firstName} {reservation.lastName}</h2>
+                <p className="text-sm mr-2">{reservation.amount} Personen</p>
+                <span className="mr-2">{formatTime(reservation.reserveAt)}</span>
+              </div>
+              <div className="text-sm font-semibold flex items-center">
                 <ReservationStatusBadge status={reservation.status}/>
-              </p>
-              <svg className={`w-6 h-6 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              </div>
             </div>
+            <svg className={`w-6 h-6 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
           </div>
         </div>
 

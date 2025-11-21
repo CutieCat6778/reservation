@@ -22,8 +22,7 @@ export default function ReservationSlugPage({ slug }: { slug: string }) {
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
-
-  const { reservations, loading, refetch, confirm, decline, update, sendMessage } = useReservations(slug);
+  const { reservations, loading, refetch, confirm, openReservation, update, sendMessage } = useReservations(slug);
 
   const showNotification = (msg: string) => {
     setNotification(msg);
@@ -35,10 +34,8 @@ export default function ReservationSlugPage({ slug }: { slug: string }) {
 
     const templates = emailTemplates(selectedReservation);
     let content = templates[selectedTemplate as keyof typeof templates].body;
-    content += `<br/><a href="${process.env.NEXT_PUBLIC_FRONTEND_URI}/reservation?id=${selectedReservation.id}">Link zur Reservierung</a><br/><div>Ihr Yoake Restaurant-Team</div>`;
 
     try {
-      await decline(selectedReservation.id);
       await sendMessage(selectedReservation.id, content);
       showNotification("Reservierung abgelehnt und E-Mail gesendet");
       setShowModal(false);
@@ -86,7 +83,7 @@ export default function ReservationSlugPage({ slug }: { slug: string }) {
             onToggle={() => setExpandedId(expandedId === r.id ? null : r.id)}
             onConfirm={() => confirm(r.id).then(() => { showNotification("Bestätigt"); refetch(); })}
             onDecline={() => { setSelectedReservation(r); setSelectedTemplate(null); setShowModal(true); }}
-            onOpen={() => update({ id: r.id, status: "OPEN" }).then(() => { showNotification("Auf offen gesetzt"); refetch(); })}
+            onOpen={() => openReservation(r.id).then(() => { showNotification("Auf offen gesetzt"); refetch(); })}
             onChangeTime={() => handleChangeTime(r)}
           />
         ))}
