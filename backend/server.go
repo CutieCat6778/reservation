@@ -98,6 +98,6 @@ func main() {
 	router.Handle("/", repository.Middleware()(playground.Handler("Reservation", "/query")))
 	router.Handle("/query", repository.Middleware()(srv))
 
-	log.Printf("Server running on http://localhost:%s/ (GraphQL Playground at /)", port)
+	// log.Printf("Server running on http://localhost:%s/ (GraphQL Playground at /)", port)
 	log.Fatal(http.ListenAndServe(":"+port, router))
 }
