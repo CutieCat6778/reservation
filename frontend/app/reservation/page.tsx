@@ -39,7 +39,11 @@ export default function GuestReservationPage() {
   }
 
   if (!reservation) {
-    return <div className="flex items-center justify-center min-h-screen">Lade Reservierung…</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <span className="loading loading-spinner loading-lg"></span>
+      </div>
+    )
   }
 
   return (

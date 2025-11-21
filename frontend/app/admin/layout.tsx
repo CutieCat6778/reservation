@@ -42,7 +42,7 @@ export default function AdminLayout({
   if (checkingAuth) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p>Lade…</p>
+        <span className="loading loading-spinner loading-lg"></span>
       </div>
     );
   }
