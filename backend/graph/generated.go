@@ -61,6 +61,7 @@ type ComplexityRoot struct {
 		DeclineReservation       func(childComplexity int, id string) int
 		Login                    func(childComplexity int, username string, password string) int
 		LoginWithReservation     func(childComplexity int, id string, lastName string) int
+		OpenReservation          func(childComplexity int, id string) int
 		SendMessageToReservation func(childComplexity int, id string, content string) int
 		UpdateReservation        func(childComplexity int, input model.UpdateReservation) int
 	}
@@ -121,6 +122,7 @@ type MutationResolver interface {
 	CreateReservation(ctx context.Context, input model.NewReservation) (*model.LoginWithReservationResponse, error)
 	UpdateReservation(ctx context.Context, input model.UpdateReservation) (*model.Reservation, error)
 	CancelReservation(ctx context.Context, id string) (*model.Reservation, error)
+	OpenReservation(ctx context.Context, id string) (*model.Reservation, error)
 	ConfirmReservation(ctx context.Context, id string) (*model.Reservation, error)
 	DeclineReservation(ctx context.Context, id string) (*model.Reservation, error)
 	Login(ctx context.Context, username string, password string) (string, error)
@@ -239,6 +241,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.LoginWithReservation(childComplexity, args["id"].(string), args["lastName"].(string)), true
+	case "Mutation.openReservation":
+		if e.complexity.Mutation.OpenReservation == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_openReservation_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.OpenReservation(childComplexity, args["id"].(string)), true
 	case "Mutation.sendMessageToReservation":
 		if e.complexity.Mutation.SendMessageToReservation == nil {
 			break
@@ -706,6 +719,17 @@ func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawAr
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_openReservation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_sendMessageToReservation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1087,6 +1111,69 @@ func (ec *executionContext) fieldContext_Mutation_cancelReservation(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_cancelReservation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_openReservation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_openReservation,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().OpenReservation(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		ec.marshalNReservation2ᚖrevervationᚋbackendᚋgraphᚋmodelᚐReservation,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_openReservation(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Reservation_id(ctx, field)
+			case "firstName":
+				return ec.fieldContext_Reservation_firstName(ctx, field)
+			case "lastName":
+				return ec.fieldContext_Reservation_lastName(ctx, field)
+			case "phoneNumber":
+				return ec.fieldContext_Reservation_phoneNumber(ctx, field)
+			case "email":
+				return ec.fieldContext_Reservation_email(ctx, field)
+			case "amount":
+				return ec.fieldContext_Reservation_amount(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Reservation_createdAt(ctx, field)
+			case "reserveAt":
+				return ec.fieldContext_Reservation_reserveAt(ctx, field)
+			case "status":
+				return ec.fieldContext_Reservation_status(ctx, field)
+			case "notes":
+				return ec.fieldContext_Reservation_notes(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Reservation", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_openReservation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4427,6 +4514,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "cancelReservation":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_cancelReservation(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "openReservation":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_openReservation(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

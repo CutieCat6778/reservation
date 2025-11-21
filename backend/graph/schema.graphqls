@@ -103,6 +103,7 @@ type Mutation {
   createReservation(input: NewReservation!): LoginWithReservationResponse!
   updateReservation(input: UpdateReservation!): Reservation!
   cancelReservation(id: ID!): Reservation!
+  openReservation(id: ID!): Reservation!
   confirmReservation(id: ID!): Reservation!
   declineReservation(id: ID!): Reservation!
   login(username: String!, password: String!): String!

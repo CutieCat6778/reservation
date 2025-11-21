@@ -3,6 +3,7 @@ package mailer
 import (
 	"fmt"
 	"net/smtp"
+	"os"
 	"revervation/backend/graph/model"
 )
 
@@ -38,32 +39,16 @@ func (m *Mailer) SendReservationStatusEmail(reservation *model.Reservation, even
 }
 
 // SendCustomHTMLEmail sends an email with custom HTML content using the same layout
-func (m *Mailer) SendCustomHTMLEmail(to string, subject string, customHTML string) error {
-	body := fmt.Sprintf(`
-		<html>
-		<head>
-		<style>
-		body { font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; }
-		.container { max-width: 600px; margin: 20px auto; background: #fff; padding: 20px; border-radius: 8px; }
-		h2 { color: #2c3e50; }
-		p { line-height: 1.5; }
-		.footer { margin-top: 20px; font-size: 0.85em; color: #999; }
-		</style>
-		</head>
-		<body>
-		<div class="container">
-		%s
-		</div>
-		</body>
-		</html>
-		`, customHTML)
-
+func (m *Mailer) SendCustomHTMLEmail(reservation *model.Reservation, customHTML string) error {
+	event := model.ReservationEventBroadcastDeclined
+	to := reservation.Email
+	subject := fmt.Sprintf("Ihre Reservierung wurde %s", formatEvent(event))
+	body := m.buildCustomHTMLBody(reservation, customHTML)
 	msg := fmt.Sprintf("From: %s\r\n", m.config.From) +
 		fmt.Sprintf("To: %s\r\n", to) +
 		fmt.Sprintf("Subject: %s\r\n", subject) +
 		"MIME-version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n" +
 		body
-
 	addr := fmt.Sprintf("%s:%d", m.config.Host, m.config.Port)
 	return smtp.SendMail(addr, m.auth, m.config.From, []string{to}, []byte(msg))
 }
@@ -108,6 +93,14 @@ func (m *Mailer) buildHTMLBody(reservation *model.Reservation, event model.Reser
 	return m.wrapHTML(reservation, statusMessage, notes)
 }
 
+func (m *Mailer) buildCustomHTMLBody(reservation *model.Reservation, contentHTML string) string {
+	notes := "Keine"
+	if reservation.Notes != nil && *reservation.Notes != "" {
+		notes = *reservation.Notes
+	}
+	return m.wrapHTML(reservation, contentHTML, notes)
+}
+
 func (m *Mailer) wrapHTML(reservation *model.Reservation, message string, notes string) string {
 	return fmt.Sprintf(`
 		<html>
@@ -130,6 +123,8 @@ func (m *Mailer) wrapHTML(reservation *model.Reservation, message string, notes 
 		<li>Datum & Uhrzeit: %s</li>
 		<li>Anzahl Personen: %d</li>
 		<li>Notizen: %s</li>
+		<br/>
+		<a href="%s/reservation?id=%s">Link zur Reservierung</a>
 		</ul>
 		<p>Vielen Dank für Ihre Reservierung!</p>
 		<div class="footer">
@@ -138,5 +133,5 @@ func (m *Mailer) wrapHTML(reservation *model.Reservation, message string, notes 
 		</div>
 		</body>
 		</html>
-		`, *reservation.FirstName, reservation.LastName, message, reservation.ReserveAt.Local().Format("02.01.2006 15:04"), reservation.Amount, notes)
+		`, *reservation.FirstName, reservation.LastName, message, reservation.ReserveAt.Local().Format("02.01.2006 15:04"), reservation.Amount, notes, os.Getenv("FRONT_END_URI"), reservation.ID)
 }

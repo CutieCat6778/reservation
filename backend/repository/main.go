@@ -25,7 +25,7 @@ func (r *ReservationRepository) Create(reservation *model.Reservation) error {
 	if reservation.ReserveAt.IsZero() {
 		return fmt.Errorf("Reservierungsdatum darf nicht leer sein.")
 	}
-	if reservation.CreatedAt.UTC().After(reservation.ReserveAt.UTC()) {
+	if reservation.CreatedAt.After(reservation.ReserveAt) {
 		return fmt.Errorf("Du kannst nicht in die Vergangenheit reservieren.")
 	}
 	if reservation.LastName == "" {
@@ -136,7 +136,7 @@ func (r *ReservationRepository) GetByFilter(filter model.ReservationFilter) ([]*
 		args = append(args, *filter.DateFrom)
 	}
 	if filter.DateTo != nil {
-		query += ` AND reserve_at <= ?`
+		query += ` AND reserve_at < ?`
 		args = append(args, *filter.DateTo)
 	}
 	query += ` ORDER BY reserve_at DESC`
@@ -174,11 +174,11 @@ func (r *ReservationRepository) GetAllByFilter(filter model.ReservationFilter) (
 	}
 	if filter.DateFrom != nil {
 		query += ` AND reserve_at >= ?`
-		args = append(args, *filter.DateFrom)
+		args = append(args, (*filter.DateFrom))
 	}
 	if filter.DateTo != nil {
 		query += ` AND reserve_at <= ?`
-		args = append(args, *filter.DateTo)
+		args = append(args, (*filter.DateTo))
 	}
 	if filter.Email != nil {
 		query += ` AND email LIKE ?`
@@ -224,7 +224,7 @@ func (r *ReservationRepository) GetStats(date *time.Time) (*model.ReservationInf
 		startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, loc)
 		endOfDay := startOfDay.Add(24 * time.Hour)
 		query += " WHERE reserve_at >= ? AND reserve_at < ?"
-		args = append(args, startOfDay.UTC(), endOfDay.UTC()) // convert to UTC for DB
+		args = append(args, startOfDay, endOfDay) // convert to UTC for DB
 	}
 	err := r.db.QueryRow(query, args...).Scan(&totalReservation, &totalPerson, &totalBigReservation, &totalOpen, &totalConfirmed, &totalCanceled)
 	if err != nil {
@@ -252,7 +252,7 @@ func (r *ReservationRepository) GetStats(date *time.Time) (*model.ReservationInf
 				COALESCE(SUM(CASE WHEN amount >= 5 THEN 1 ELSE 0 END),0)
 			FROM reservations
 			WHERE reserve_at >= ? AND reserve_at < ? AND status = ?`
-		err := r.db.QueryRow(hourQuery, current.UTC(), next.UTC(), "OPEN").Scan(&hourTotal, &hourPerson, &hourBig)
+		err := r.db.QueryRow(hourQuery, current, next, "CONFIRMED").Scan(&hourTotal, &hourPerson, &hourBig)
 		if err != nil {
 			return nil, err
 		}
@@ -313,7 +313,7 @@ func (r *ReservationRepository) SendMessageToReservation(id string, content stri
 		return fmt.Errorf("reservation not found or missing email")
 	}
 
-	if err := mailer.SendCustomHTMLEmail(resv.Email, "Ihre Reservierung bei Yoake", content); err != nil {
+	if err := mailer.SendCustomHTMLEmail(resv, content); err != nil {
 		return err
 	}
 

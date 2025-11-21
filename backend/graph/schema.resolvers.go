@@ -17,6 +17,12 @@ import (
 // CreateReservation is the resolver for the createReservation field.
 func (r *mutationResolver) CreateReservation(ctx context.Context, input model.NewReservation) (*model.LoginWithReservationResponse, error) {
 	repo := repository.NewReservationRepository()
+	emptyString := " "
+	fmt.Println(input.FirstName)
+	if input.FirstName == nil {
+		fmt.Println("It is nil")
+		input.FirstName = &emptyString
+	}
 	reservation := &model.Reservation{
 		ID:          uuid.New().String(),
 		FirstName:   input.FirstName,
@@ -24,8 +30,8 @@ func (r *mutationResolver) CreateReservation(ctx context.Context, input model.Ne
 		PhoneNumber: input.PhoneNumber,
 		Email:       input.Email,
 		Amount:      input.Amount,
-		CreatedAt:   time.Now(),
-		ReserveAt:   input.ReserveAt,
+		CreatedAt:   time.Now().Local(),
+		ReserveAt:   input.ReserveAt.Local(),
 		Status:      model.ReservationStatusOpen,
 		Notes:       input.Notes,
 	}
@@ -81,6 +87,24 @@ func (r *mutationResolver) CancelReservation(ctx context.Context, id string) (*m
 	return reservation, nil
 }
 
+// OpenReservation is the resolver for the openReservation field.
+func (r *mutationResolver) OpenReservation(ctx context.Context, id string) (*model.Reservation, error) {
+	user := repository.ForContext(ctx)
+	if user == nil {
+		return nil, fmt.Errorf("Unauthenticated")
+	}
+	if !user.IsAdmin {
+		return nil, fmt.Errorf("Unauthenticated")
+	}
+	repo := repository.NewReservationRepository()
+	reservation, err := repo.UpdateStatus(id, model.ReservationStatusOpen)
+	if err != nil {
+		return nil, err
+	}
+	r.Resolver.broadcastUpdate(reservation, model.ReservationEventBroadcastCreated)
+	return reservation, nil
+}
+
 // ConfirmReservation is the resolver for the confirmReservation field.
 func (r *mutationResolver) ConfirmReservation(ctx context.Context, id string) (*model.Reservation, error) {
 	user := repository.ForContext(ctx)
@@ -133,7 +157,16 @@ func (r *mutationResolver) LoginWithReservation(ctx context.Context, id string, 
 func (r *mutationResolver) SendMessageToReservation(ctx context.Context, id string, content string) (bool, error) {
 	repo := repository.NewReservationRepository()
 	err := repo.SendMessageToReservation(id, content, r.mailer)
-	return err == nil, err
+	if err != nil {
+		return false, err
+	}
+
+	_, err = repo.UpdateStatus(id, model.ReservationStatusDeclined)
+	if err != nil {
+		return false, err
+	}
+
+	return true, err
 }
 
 // GetReservation is the resolver for the getReservation field.

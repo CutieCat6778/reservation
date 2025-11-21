@@ -7,11 +7,13 @@ import (
 	"revervation/backend/database"
 	"revervation/backend/graph"
 	"revervation/backend/repository"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
@@ -24,9 +26,7 @@ const defaultPort = "8080"
 const dbPath = "./reservation.db"
 
 func resetDatabase() {
-	if err := database.Close(); err != nil {
-		log.Printf("Error closing DB: %v", err)
-	}
+	time.Sleep(100 * time.Millisecond)
 
 	if err := os.Remove(dbPath); err != nil && !os.IsNotExist(err) {
 		log.Printf("Error removing DB: %v", err)
@@ -56,7 +56,6 @@ func main() {
 	}
 	defer database.Close()
 
-	// Cron job to reset DB every day at 08:00
 	c := cron.New()
 	_, err := c.AddFunc("0 8 * * *", resetDatabase)
 	if err != nil {
@@ -83,7 +82,6 @@ func main() {
 		Cache: lru.New[string](100),
 	})
 
-	// Setup CORS middleware
 	corsMiddleware := cors.New(cors.Options{
 		AllowedOrigins:   []string{"https://reserve.thinis.de", "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
@@ -92,13 +90,12 @@ func main() {
 		Debug:            false,
 	}).Handler
 
-	// Chi router
 	router := chi.NewRouter()
 	router.Use(func(next http.Handler) http.Handler {
 		return corsMiddleware(next)
 	})
 
-	// Playground and GraphQL handler
+	router.Handle("/", repository.Middleware()(playground.Handler("Reservation", "/query")))
 	router.Handle("/query", repository.Middleware()(srv))
 
 	log.Printf("Server running on http://localhost:%s/ (GraphQL Playground at /)", port)

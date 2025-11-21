@@ -43,6 +43,7 @@ func (r *Resolver) broadcastUpdate(reservation *model.Reservation, event model.R
 		Event:       event,
 	}
 	go func() {
+		fmt.Println("Sending Email")
 		err := r.mailer.SendReservationStatusEmail(reservation, event)
 		if err != nil {
 			fmt.Println(err)
